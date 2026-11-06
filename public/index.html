@@ -9,20 +9,11 @@
     canvas { display: block; margin: 0 auto; background: #2a7a2a; }
     #hud { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); text-align: center; }
     #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; text-align: center; pointer-events: none; }
-    .screen {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-      background: #111; display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 20px; z-index: 10;
-    }
+    .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; z-index: 10; overflow-y: auto; }
     .screen h1 { margin: 0; }
     .screen label { display: flex; flex-direction: column; gap: 5px; font-size: 16px; }
-    .screen select, .screen button, .screen input {
-      padding: 8px 12px; font-size: 16px; border-radius: 6px; border: none;
-    }
-    .screen button {
-      background: #2a7a2a; color: #fff; cursor: pointer; font-weight: bold;
-      padding: 12px 24px; font-size: 18px;
-    }
+    .screen select, .screen button, .screen input { padding: 8px 12px; font-size: 16px; border-radius: 6px; border: none; }
+    .screen button { background: #2a7a2a; color: #fff; cursor: pointer; font-weight: bold; padding: 12px 24px; font-size: 18px; }
     .screen button:hover { background: #3a9a3a; }
     .screen .secondary { background: #555; }
     .screen .secondary:hover { background: #777; }
@@ -30,10 +21,12 @@
     .code-display { font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #4ade80; }
     .row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; justify-content: center; }
     .hidden { display: none !important; }
+    .color-picker { display: flex; align-items: center; gap: 10px; }
+    .color-picker input { width: 40px; height: 40px; padding: 0; cursor: pointer; }
+    .input-text { text-align: center; font-weight: bold; }
   </style>
 </head>
 <body>
-  <!-- Schermata 1: Home -->
   <div id="homeScreen" class="screen">
     <h1>⚽ Calcio Pallini</h1>
     <div class="row">
@@ -42,11 +35,18 @@
     </div>
   </div>
 
-  <!-- Schermata 2: Crea stanza -->
   <div id="createScreen" class="screen hidden">
     <h1>Crea Stanza</h1>
     <label>
-      Giocatori per squadra:
+      Modalità:
+      <select id="createMode">
+        <option value="normal">Classica (con amici)</option>
+        <option value="training">Allenamento (solo)</option>
+        <option value="bots">Partita con Bot</option>
+      </select>
+    </label>
+    <label>
+      Giocatori per squadra (solo in Classica):
       <select id="createMaxPerTeam">
         <option value="1">1 vs 1</option>
         <option value="2" selected>2 vs 2 (max)</option>
@@ -63,28 +63,59 @@
     </label>
     <button id="doCreate">Genera Codice Stanza</button>
     <p id="createMsg" class="msg"></p>
-    <div id="codeArea" class="hidden">
-      <p>Codice stanza (condividilo con i tuoi amici):</p>
+    
+    <div id="codeArea" class="hidden" style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
+      <p>Codice stanza:</p>
       <div id="roomCodeDisplay" class="code-display"></div>
-      <p class="msg">In attesa che gli altri entrino...</p>
+      
+      <div style="background: #222; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+        <label style="flex-direction: row; align-items: center; justify-content: space-between; gap: 10px;">
+          Il tuo nome (max 7):
+          <input type="text" id="playerName" class="input-text" maxlength="7" placeholder="Il tuo nome" style="width: 120px;">
+        </label>
+        <div class="color-picker">
+          <label style="flex-direction: row;">Scegli il colore:</label>
+          <input type="color" id="playerColor" value="#e63946">
+        </div>
+        <div id="teamChoiceArea" class="hidden" style="display: flex; flex-direction: column; gap: 5px;">
+          <label style="flex-direction: row;">Scegli la squadra:</label>
+          <select id="teamSelect">
+            <option value="">Automatico</option>
+            <option value="A">Squadra A (Sinistra)</option>
+            <option value="B">Squadra B (Destra)</option>
+          </select>
+        </div>
+      </div>
+
+      <p id="lobbyStatus" class="msg">In attesa che gli altri entrino...</p>
       <button id="enterCreated" class="hidden">Entra nella partita</button>
     </div>
     <button id="backFromCreate" class="secondary">Indietro</button>
   </div>
 
-  <!-- Schermata 3: Entra in stanza -->
   <div id="joinScreen" class="screen hidden">
     <h1>Entra in una Stanza</h1>
     <label>
       Codice stanza:
       <input id="joinCodeInput" type="text" placeholder="Es. ABCD" maxlength="4" style="text-transform: uppercase; text-align: center; font-size: 20px; letter-spacing: 3px;">
     </label>
-    <button id="doJoin">Entra</button>
+    
+    <div style="background: #222; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+        <label style="flex-direction: row; align-items: center; justify-content: space-between; gap: 10px;">
+          Il tuo nome (max 7):
+          <input type="text" id="joinPlayerName" class="input-text" maxlength="7" placeholder="Il tuo nome" style="width: 120px;">
+        </label>
+        <div class="color-picker">
+          <label style="flex-direction: row;">Scegli il colore:</label>
+          <input type="color" id="joinPlayerColor" value="#457b9d">
+        </div>
+      </div>
+
+    <button id="doJoin" style="margin-top: 10px;">Entra</button>
     <p id="joinMsg" class="msg"></p>
     <button id="backFromJoin" class="secondary">Indietro</button>
   </div>
 
-  <!-- Gioco -->
   <canvas id="c" width="900" height="600" class="hidden"></canvas>
   <div id="hud" class="hidden">
     <div id="score">0 - 0</div>
@@ -97,16 +128,13 @@
     const canvas = document.getElementById('c');
     const ctx = canvas.getContext('2d');
     const socket = io();
-    const W = 900, H = 600;
-    const GOAL_H = 160;
+    const W = 900, H = 600, GOAL_H = 160;
 
-    let myTeam = null;
-    let myId = null;
-    let myRoomId = null;
+    let myTeam = null, myId = null, myRoomId = null;
+    let currentMode = 'normal';
     let state = { players: {}, ball: { x: W/2, y: H/2 }, score: { A: 0, B: 0 }, timeLeft: 600, matchState: 'waiting', inExtraTime: false };
     let keys = {};
 
-    // Elementi UI
     const homeScreen = document.getElementById('homeScreen');
     const createScreen = document.getElementById('createScreen');
     const joinScreen = document.getElementById('joinScreen');
@@ -116,33 +144,25 @@
     const codeArea = document.getElementById('codeArea');
     const roomCodeDisplay = document.getElementById('roomCodeDisplay');
     const enterCreated = document.getElementById('enterCreated');
+    const lobbyStatus = document.getElementById('lobbyStatus');
+    const teamChoiceArea = document.getElementById('teamChoiceArea');
 
-    // Navigazione
-    document.getElementById('goCreate').onclick = () => {
-      homeScreen.classList.add('hidden');
-      createScreen.classList.remove('hidden');
-    };
-    document.getElementById('goJoin').onclick = () => {
-      homeScreen.classList.add('hidden');
-      joinScreen.classList.remove('hidden');
-    };
-    document.getElementById('backFromCreate').onclick = () => {
-      createScreen.classList.add('hidden');
-      homeScreen.classList.remove('hidden');
-      codeArea.classList.add('hidden');
-      createMsg.textContent = '';
-    };
-    document.getElementById('backFromJoin').onclick = () => {
-      joinScreen.classList.add('hidden');
-      homeScreen.classList.remove('hidden');
-      joinMsg.textContent = '';
-    };
+    document.getElementById('goCreate').onclick = () => { homeScreen.classList.add('hidden'); createScreen.classList.remove('hidden'); };
+    document.getElementById('goJoin').onclick = () => { homeScreen.classList.add('hidden'); joinScreen.classList.remove('hidden'); };
+    document.getElementById('backFromCreate').onclick = () => { createScreen.classList.add('hidden'); homeScreen.classList.remove('hidden'); codeArea.classList.add('hidden'); createMsg.textContent = ''; };
+    document.getElementById('backFromJoin').onclick = () => { joinScreen.classList.add('hidden'); homeScreen.classList.remove('hidden'); joinMsg.textContent = ''; };
 
-    // Crea stanza
+    document.getElementById('createMode').addEventListener('change', (e) => {
+      if (e.target.value === 'normal') { teamChoiceArea.classList.remove('hidden'); }
+      else { teamChoiceArea.classList.add('hidden'); }
+    });
+
     document.getElementById('doCreate').onclick = () => {
+      const mode = document.getElementById('createMode').value;
+      currentMode = mode;
       const maxPerTeam = parseInt(document.getElementById('createMaxPerTeam').value);
       const matchTime = parseInt(document.getElementById('createMatchTime').value);
-      socket.emit('createRoom', { maxPerTeam, matchTime });
+      socket.emit('createRoom', { maxPerTeam, matchTime, mode });
       createMsg.textContent = 'Generazione in corso...';
     };
 
@@ -151,123 +171,113 @@
       roomCodeDisplay.textContent = data.roomId;
       codeArea.classList.remove('hidden');
       createMsg.textContent = '';
+      
+      if (currentMode === 'training') lobbyStatus.textContent = 'Premi Entra per allenarti da solo.';
+      else if (currentMode === 'bots') lobbyStatus.textContent = 'Premi Entra per giocare contro il Bot.';
+      else lobbyStatus.textContent = 'In attesa che gli altri entrino...';
       enterCreated.classList.remove('hidden');
     });
 
     enterCreated.onclick = () => {
-      socket.emit('joinGame', { roomId: myRoomId });
+      const customColor = document.getElementById('playerColor').value;
+      const preferredTeam = document.getElementById('teamSelect').value;
+      const playerName = document.getElementById('playerName').value;
+      socket.emit('joinGame', { roomId: myRoomId, customColor, preferredTeam, playerName });
       enterCreated.classList.add('hidden');
     };
 
-    // Entra in stanza esistente
     document.getElementById('doJoin').onclick = () => {
       const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
       if (!code) { joinMsg.textContent = 'Inserisci un codice.'; return; }
       myRoomId = code;
-      socket.emit('joinGame', { roomId: code });
+      const customColor = document.getElementById('joinPlayerColor').value;
+      const playerName = document.getElementById('joinPlayerName').value;
+      socket.emit('joinGame', { roomId: code, customColor, playerName });
       joinMsg.textContent = 'Connessione...';
     };
 
-    socket.on('errorMsg', (msg) => {
-      joinMsg.textContent = msg;
-      createMsg.textContent = msg;
-    });
-    socket.on('full', () => {
-      joinMsg.textContent = 'Stanza piena.';
-      createMsg.textContent = 'Stanza piena.';
-    });
+    socket.on('errorMsg', (msg) => { joinMsg.textContent = msg; createMsg.textContent = msg; });
+    socket.on('full', () => { joinMsg.textContent = 'Stanza piena.'; createMsg.textContent = 'Stanza piena.'; });
 
-    // Assegnazione squadra e avvio
     socket.on('assigned', (data) => {
-      myTeam = data.team;
-      myId = data.playerId;
-      homeScreen.classList.add('hidden');
-      createScreen.classList.add('hidden');
-      joinScreen.classList.add('hidden');
-      canvas.classList.remove('hidden');
-      hud.classList.remove('hidden');
+      myTeam = data.team; myId = data.playerId;
+      homeScreen.classList.add('hidden'); createScreen.classList.add('hidden'); joinScreen.classList.add('hidden');
+      canvas.classList.remove('hidden'); hud.classList.remove('hidden');
     });
 
-    socket.on('matchStart', () => {
-      document.getElementById('msg').textContent = '';
-    });
-
-    socket.on('goal', (data) => {
-      document.getElementById('msg').textContent = `GOL! ${data.team} segna!`;
-      setTimeout(() => { if (document.getElementById('msg').textContent.startsWith('GOL')) document.getElementById('msg').textContent = ''; }, 1500);
-    });
-    socket.on('extraTime', () => {
-      document.getElementById('msg').textContent = 'Pareggio! Supplementare!';
-      setTimeout(() => document.getElementById('msg').textContent = '', 2000);
-    });
-    socket.on('matchEnd', (data) => {
-      document.getElementById('msg').textContent = data.winner === 'pareggio' ? 'Pareggio!' : `Vince ${data.winner}!`;
-    });
+    socket.on('matchStart', () => { document.getElementById('msg').textContent = ''; });
+    socket.on('goal', (data) => { document.getElementById('msg').textContent = `GOL! ${data.team} segna!`; setTimeout(() => { if (document.getElementById('msg').textContent.startsWith('GOL')) document.getElementById('msg').textContent = ''; }, 1500); });
+    socket.on('extraTime', () => { document.getElementById('msg').textContent = 'Pareggio! Supplementare!'; setTimeout(() => document.getElementById('msg').textContent = '', 2000); });
+    socket.on('matchEnd', (data) => { document.getElementById('msg').textContent = data.winner === 'pareggio' ? 'Pareggio!' : `Vince ${data.winner}!`; });
     socket.on('state', (s) => { state = s; });
 
-    // Input
-    document.addEventListener('keydown', e => {
-      keys[e.key.toLowerCase()] = true;
-      if (e.key === ' ') { socket.emit('boost'); e.preventDefault(); }
-    });
+    document.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if (e.key === ' ') { socket.emit('boost'); e.preventDefault(); } });
     document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
-    // Loop di gioco
     function loop() {
       if (myTeam) {
         let dx = 0, dy = 0;
-        if (keys['w']) dy -= 1;
-        if (keys['s']) dy += 1;
-        if (keys['a']) dx -= 1;
-        if (keys['d']) dx += 1;
+        if (keys['w']) dy -= 1; if (keys['s']) dy += 1; if (keys['a']) dx -= 1; if (keys['d']) dx += 1;
         if (dx !== 0 || dy !== 0) { const len = Math.hypot(dx, dy); dx /= len; dy /= len; }
         socket.emit('move', { dx, dy });
       }
-
       ctx.clearRect(0, 0, W, H);
-      drawField();
-      drawBall();
-      drawPlayers();
-      drawHUD();
+      drawField(); drawBall(); drawPlayers(); drawHUD();
       requestAnimationFrame(loop);
     }
 
     function drawField() {
-      ctx.fillStyle = '#2a7a2a';
-      ctx.fillRect(0, 0, W, H);
-      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(0, 0, W, H);
+      ctx.fillStyle = '#2a7a2a'; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, W, H);
       ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
       ctx.beginPath(); ctx.arc(W/2, H/2, 80, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = 'rgba(255,255,255,0.2)';
-      ctx.fillRect(0, H/2 - GOAL_H/2, 8, GOAL_H);
-      ctx.fillRect(W - 8, H/2 - GOAL_H/2, 8, GOAL_H);
+      ctx.fillRect(0, H/2 - GOAL_H/2, 8, GOAL_H); ctx.fillRect(W - 8, H/2 - GOAL_H/2, 8, GOAL_H);
     }
 
     function drawBall() {
-      const b = state.ball;
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(b.x, b.y, 10, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
+      const b = state.ball; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, 10, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
     }
 
     function drawPlayers() {
       for (const id in state.players) {
         const p = state.players[id];
-        ctx.fillStyle = p.team === 'A' ? '#e63946' : '#457b9d';
+        
+        if (p.customColor) { ctx.fillStyle = p.customColor; } 
+        else { ctx.fillStyle = p.team === 'A' ? '#e63946' : '#457b9d'; }
+        
         ctx.beginPath(); ctx.arc(p.x, p.y, 18, 0, Math.PI * 2); ctx.fill();
+        
         if (id === myId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); }
+
+        // Simbolo daltonici
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        if (p.team === 'A') { ctx.fillText('X', p.x, p.y); } 
+        else { ctx.fillText('O', p.x, p.y); }
+
+        // NOME GIOCATORE
+        if (p.playerName) {
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(p.x - 25, p.y - 38, 50, 16);
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(p.playerName, p.x, p.y - 30);
+        }
+
+        if (p.isBot) { ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif'; ctx.fillText('BOT', p.x, p.y + 25); }
       }
     }
 
     function drawHUD() {
       document.getElementById('score').textContent = `${state.score.A} - ${state.score.B}`;
       const t = Math.max(0, Math.ceil(state.timeLeft));
-      const m = Math.floor(t / 60);
-      const s = t % 60;
-      document.getElementById('timer').textContent =
-        `${m}:${s.toString().padStart(2, '0')}` + (state.inExtraTime ? ' (supp.)' : '');
+      if (state.mode === 'training') {
+        document.getElementById('timer').textContent = 'ALLENAMENTO';
+      } else {
+        document.getElementById('timer').textContent = `${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}` + (state.inExtraTime ? ' (supp.)' : '');
+      }
     }
 
     loop();
