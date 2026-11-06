@@ -1,27 +1,19 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
+app.get('/', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'index.html')); });
 
-// ====== COSTANTI DEL CAMPO ======
-const W = 900;
-const H = 600;
-const GOAL_H = 160;
-const BALL_R = 10;
-const PLAYER_R = 18;
+const W = 900, H = 600, GOAL_H = 160, BALL_R = 10, PLAYER_R = 18;
 const EXTRA_TIME = 5 * 60;
-
-// ====== STATO GLOBALE ======
-// Ora le partite sono divise per "stanze" (rooms)
-// rooms[roomId] = { players: {}, ball: {...}, score: {...}, timeLeft, matchState, ... }
 const rooms = {};
 
-// Funzione per creare una stanza vuota
 function createRoom(roomId, config) {
   return {
     id: roomId,
@@ -34,7 +26,8 @@ function createRoom(roomId, config) {
     inExtraTime: false,
     lastTick: Date.now(),
     MAX_PER_TEAM: Math.min(2, Math.max(1, config.maxPerTeam || 2)),
-    MATCH_TIME: Math.max(30, Math.min(60 * 60, config.matchTime || 10 * 60))
+    MATCH_TIME: Math.max(30, Math.min(60 * 60, config.matchTime || 10 * 60)),
+    mode: config.mode || 'normal'
   };
 }
 
@@ -43,37 +36,18 @@ function resetPositions(room) {
   const teamA = ids.filter(id => room.players[id].team === 'A');
   const teamB = ids.filter(id => room.players[id].team === 'B');
 
-  teamA.forEach((id, i) => {
-    room.players[id].x = W * 0.25;
-    room.players[id].y = H * 0.5 + (i - (teamA.length - 1) / 2) * 120;
-    room.players[id].vx = 0;
-    room.players[id].vy = 0;
-  });
-  teamB.forEach((id, i) => {
-    room.players[id].x = W * 0.75;
-    room.players[id].y = H * 0.5 + (i - (teamB.length - 1) / 2) * 120;
-    room.players[id].vx = 0;
-    room.players[id].vy = 0;
-  });
+  teamA.forEach((id, i) => { room.players[id].x = W * 0.25; room.players[id].y = H * 0.5 + (i - (teamA.length - 1) / 2) * 120; room.players[id].vx = 0; room.players[id].vy = 0; });
+  teamB.forEach((id, i) => { room.players[id].x = W * 0.75; room.players[id].y = H * 0.5 + (i - (teamB.length - 1) / 2) * 120; room.players[id].vx = 0; room.players[id].vy = 0; });
 
-  room.ball.x = W / 2;
-  room.ball.y = H / 2;
-  room.ball.vx = 0;
-  room.ball.vy = 0;
+  room.ball.x = W / 2; room.ball.y = H / 2; room.ball.vx = 0; room.ball.vy = 0;
 }
 
 function checkGoal(room) {
   if (room.ball.x - BALL_R <= 0 && room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2) {
-    room.score.B++;
-    resetPositions(room);
-    io.to(room.id).emit('goal', { team: 'B', score: room.score });
-    return true;
+    room.score.B++; resetPositions(room); io.to(room.id).emit('goal', { team: 'B', score: room.score }); return true;
   }
   if (room.ball.x + BALL_R >= W && room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2) {
-    room.score.A++;
-    resetPositions(room);
-    io.to(room.id).emit('goal', { team: 'A', score: room.score });
-    return true;
+    room.score.A++; resetPositions(room); io.to(room.id).emit('goal', { team: 'A', score: room.score }); return true;
   }
   return false;
 }
@@ -90,33 +64,36 @@ function tickRoom(room) {
     } else {
       room.timeLeft -= dt;
       if (room.timeLeft <= 0) {
-        if (room.score.A === room.score.B) {
-          room.inExtraTime = true;
-          room.extraTimeLeft = EXTRA_TIME;
-          io.to(room.id).emit('extraTime', { extraTimeLeft: room.extraTimeLeft });
-        } else {
-          room.matchState = 'ended';
-          io.to(room.id).emit('matchEnd', { score: room.score, winner: room.score.A > room.score.B ? 'A' : 'B' });
-        }
+        if (room.score.A === room.score.B) { room.inExtraTime = true; room.extraTimeLeft = EXTRA_TIME; io.to(room.id).emit('extraTime', { extraTimeLeft: room.extraTimeLeft }); }
+        else { room.matchState = 'ended'; io.to(room.id).emit('matchEnd', { score: room.score, winner: room.score.A > room.score.B ? 'A' : 'B' }); }
       }
     }
 
-    // Spinta tra pallini
+    for (const id in room.players) {
+      const p = room.players[id];
+      if (p.isBot && room.matchState === 'playing') {
+        const dx = room.ball.x - p.x;
+        const dy = room.ball.y - p.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 5) {
+          const speed = 150;
+          p.vx = (dx / dist) * speed;
+          p.vy = (dy / dist) * speed;
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+        } else { p.vx = 0; p.vy = 0; }
+      }
+    }
+
     const ids = Object.keys(room.players);
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
-        const a = room.players[ids[i]];
-        const b = room.players[ids[j]];
-        const dx = b.x - a.x;
-        const dy = b.y - a.y;
-        const dist = Math.hypot(dx, dy);
-        const minDist = PLAYER_R * 2;
+        const a = room.players[ids[i]]; const b = room.players[ids[j]];
+        const dx = b.x - a.x; const dy = b.y - a.y;
+        const dist = Math.hypot(dx, dy); const minDist = PLAYER_R * 2;
         if (dist < minDist && dist > 0) {
-          const overlap = (minDist - dist) / 2;
-          const nx = dx / dist;
-          const ny = dy / dist;
-          a.x -= nx * overlap; a.y -= ny * overlap;
-          b.x += nx * overlap; b.y += ny * overlap;
+          const overlap = (minDist - dist) / 2; const nx = dx / dist; const ny = dy / dist;
+          a.x -= nx * overlap; a.y -= ny * overlap; b.x += nx * overlap; b.y += ny * overlap;
         }
       }
     }
@@ -128,111 +105,94 @@ function tickRoom(room) {
       if (p.boostCooldown > 0) p.boostCooldown -= dt;
     }
 
-    room.ball.x += room.ball.vx * dt;
-    room.ball.y += room.ball.vy * dt;
-    room.ball.vx *= 0.985;
-    room.ball.vy *= 0.985;
+    room.ball.x += room.ball.vx * dt; room.ball.y += room.ball.vy * dt;
+    room.ball.vx *= 0.985; room.ball.vy *= 0.985;
 
-    if (room.ball.x - BALL_R < 0) {
-      if (!(room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2)) { room.ball.x = BALL_R; room.ball.vx = -room.ball.vx * 0.8; }
-    }
-    if (room.ball.x + BALL_R > W) {
-      if (!(room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2)) { room.ball.x = W - BALL_R; room.ball.vx = -room.ball.vx * 0.8; }
-    }
+    if (room.ball.x - BALL_R < 0) { if (!(room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2)) { room.ball.x = BALL_R; room.ball.vx = -room.ball.vx * 0.8; } }
+    if (room.ball.x + BALL_R > W) { if (!(room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2)) { room.ball.x = W - BALL_R; room.ball.vx = -room.ball.vx * 0.8; } }
     if (room.ball.y - BALL_R < 0) { room.ball.y = BALL_R; room.ball.vy = -room.ball.vy * 0.8; }
     if (room.ball.y + BALL_R > H) { room.ball.y = H - BALL_R; room.ball.vy = -room.ball.vy * 0.8; }
 
     for (const id in room.players) {
       const p = room.players[id];
-      const dx = room.ball.x - p.x;
-      const dy = room.ball.y - p.y;
-      const dist = Math.hypot(dx, dy);
-      const minDist = PLAYER_R + BALL_R;
+      const dx = room.ball.x - p.x; const dy = room.ball.y - p.y;
+      const dist = Math.hypot(dx, dy); const minDist = PLAYER_R + BALL_R;
       if (dist < minDist && dist > 0) {
-        const nx = dx / dist;
-        const ny = dy / dist;
-        const overlap = minDist - dist;
-        room.ball.x += nx * overlap;
-        room.ball.y += ny * overlap;
+        const nx = dx / dist; const ny = dy / dist; const overlap = minDist - dist;
+        room.ball.x += nx * overlap; room.ball.y += ny * overlap;
         const pSpeed = Math.hypot(p.vx, p.vy);
-        room.ball.vx += nx * (pSpeed * 1.5 + 50);
-        room.ball.vy += ny * (pSpeed * 1.5 + 50);
+        room.ball.vx += nx * (pSpeed * 1.5 + 50); room.ball.vy += ny * (pSpeed * 1.5 + 50);
       }
     }
-
     checkGoal(room);
   }
 
   io.to(room.id).emit('state', {
     players: room.players, ball: room.ball, score: room.score,
     timeLeft: room.inExtraTime ? room.extraTimeLeft : room.timeLeft,
-    inExtraTime: room.inExtraTime, matchState: room.matchState
+    inExtraTime: room.inExtraTime, matchState: room.matchState, mode: room.mode
   });
 }
 
-setInterval(() => {
-  for (const roomId in rooms) {
-    tickRoom(rooms[roomId]);
-  }
-}, 1000 / 30);
+setInterval(() => { for (const roomId in rooms) tickRoom(rooms[roomId]); }, 1000 / 30);
 
-// ====== SOCKET ======
 io.on('connection', (socket) => {
-  console.log('Giocatore connesso:', socket.id);
   let currentRoomId = null;
 
   socket.on('createRoom', (config) => {
-    // Genera un codice stanza di 4 caratteri (es. "ABCD")
     let code = '';
-    do {
-      code = Math.random().toString(36).substring(2, 6).toUpperCase();
-    } while (rooms[code]);
+    do { code = Math.random().toString(36).substring(2, 6).toUpperCase(); } while (rooms[code]);
+    const room = createRoom(code, config);
+    rooms[code] = room;
 
-    rooms[code] = createRoom(code, config);
+    if (config.mode === 'training') {
+      room.matchState = 'playing';
+      room.timeLeft = 999999;
+    } else if (config.mode === 'bots') {
+      const botId = 'BOT_' + Math.random().toString(36).substring(2, 6);
+      room.players[botId] = { x: W*0.75, y: H/2, vx: 0, vy: 0, team: 'B', boost: 1.0, boostCooldown: 0, isBot: true, customColor: null, playerName: 'Bot' };
+    }
     socket.emit('roomCreated', { roomId: code });
   });
 
   socket.on('joinGame', (data) => {
-    const { roomId, maxPerTeam, matchTime } = data;
+    const { roomId, customColor, preferredTeam, playerName } = data;
     const room = rooms[roomId];
-    if (!room) {
-      socket.emit('errorMsg', 'Stanza non trovata.');
-      return;
-    }
-    if (room.matchState !== 'waiting') {
-      socket.emit('errorMsg', 'La partita è già iniziata.');
-      return;
-    }
+    if (!room) return socket.emit('errorMsg', 'Stanza non trovata.');
+    if (room.matchState !== 'waiting' && room.mode !== 'training') return socket.emit('errorMsg', 'La partita è già iniziata.');
 
     const teamACount = Object.values(room.players).filter(p => p.team === 'A').length;
     const teamBCount = Object.values(room.players).filter(p => p.team === 'B').length;
 
     let team = null;
-    if (teamACount <= teamBCount && teamACount < room.MAX_PER_TEAM) team = 'A';
-    else if (teamBCount < room.MAX_PER_TEAM) team = 'B';
-
-    if (!team) {
-      socket.emit('full');
-      return;
+    if (room.MAX_PER_TEAM > 1) {
+      if (preferredTeam === 'A' && teamACount < room.MAX_PER_TEAM) team = 'A';
+      else if (preferredTeam === 'B' && teamBCount < room.MAX_PER_TEAM) team = 'B';
     }
+    if (!team) {
+      if (teamACount <= teamBCount && teamACount < room.MAX_PER_TEAM) team = 'A';
+      else if (teamBCount < room.MAX_PER_TEAM) team = 'B';
+    }
+
+    if (!team) return socket.emit('full');
 
     currentRoomId = roomId;
     socket.join(roomId);
-    room.players[socket.id] = {
-      x: W / 2, y: H / 2, vx: 0, vy: 0,
-      team, boost: 1.0, boostCooldown: 0
-    };
+    
+    // Se il nome è vuoto, usa "Giocatore"
+    const finalName = (playerName && playerName.trim() !== '') ? playerName.substring(0, 7) : 'Giocatore';
+
+    room.players[socket.id] = { x: W/2, y: H/2, vx: 0, vy: 0, team, boost: 1.0, boostCooldown: 0, isBot: false, customColor: customColor || null, playerName: finalName };
 
     socket.emit('assigned', { team, playerId: socket.id, roomId });
 
     const teamAReady = Object.values(room.players).some(p => p.team === 'A');
     const teamBReady = Object.values(room.players).some(p => p.team === 'B');
+    
     if (teamAReady && teamBReady && room.matchState === 'waiting') {
       room.matchState = 'playing';
       room.timeLeft = room.MATCH_TIME;
-      room.inExtraTime = false;
-      room.extraTimeLeft = 0;
-      room.score = { A: 0, B: 0 };
+      room.inExtraTime = false; room.extraTimeLeft = 0; room.score = { A: 0, B: 0 };
       resetPositions(room);
       room.lastTick = Date.now();
       io.to(roomId).emit('matchStart', { matchTime: room.MATCH_TIME });
@@ -241,26 +201,20 @@ io.on('connection', (socket) => {
 
   socket.on('move', (data) => {
     if (!currentRoomId || !rooms[currentRoomId]) return;
-    const room = rooms[currentRoomId];
-    const p = room.players[socket.id];
-    if (!p) return;
+    const room = rooms[currentRoomId]; const p = room.players[socket.id];
+    if (!p || p.isBot) return;
     const speed = 220 * (p.boost || 1);
-    p.vx = (data.dx || 0) * speed;
-    p.vy = (data.dy || 0) * speed;
-    p.x += p.vx * (1/30);
-    p.y += p.vy * (1/30);
-    p.x = Math.max(PLAYER_R, Math.min(W - PLAYER_R, p.x));
-    p.y = Math.max(PLAYER_R, Math.min(H - PLAYER_R, p.y));
+    p.vx = (data.dx || 0) * speed; p.vy = (data.dy || 0) * speed;
+    p.x += p.vx * (1/30); p.y += p.vy * (1/30);
+    p.x = Math.max(PLAYER_R, Math.min(W - PLAYER_R, p.x)); p.y = Math.max(PLAYER_R, Math.min(H - PLAYER_R, p.y));
   });
 
   socket.on('boost', () => {
     if (!currentRoomId || !rooms[currentRoomId]) return;
-    const room = rooms[currentRoomId];
-    const p = room.players[socket.id];
-    if (!p) return;
+    const room = rooms[currentRoomId]; const p = room.players[socket.id];
+    if (!p || p.isBot) return;
     if (p.boostCooldown <= 0) {
-      p.boost = 2.0;
-      p.boostCooldown = 2.0;
+      p.boost = 2.0; p.boostCooldown = 2.0;
       setTimeout(() => { if (room.players[socket.id]) room.players[socket.id].boost = 1.0; }, 500);
     }
   });
@@ -269,15 +223,7 @@ io.on('connection', (socket) => {
     if (!currentRoomId || !rooms[currentRoomId]) return;
     const room = rooms[currentRoomId];
     delete room.players[socket.id];
-    if (Object.keys(room.players).length === 0) {
-      delete rooms[currentRoomId];
-    } else {
-      io.to(currentRoomId).emit('state', {
-        players: room.players, ball: room.ball, score: room.score,
-        timeLeft: room.inExtraTime ? room.extraTimeLeft : room.timeLeft,
-        inExtraTime: room.inExtraTime, matchState: room.matchState
-      });
-    }
+    if (Object.keys(room.players).filter(id => !room.players[id].isBot).length === 0) { delete rooms[currentRoomId]; }
   });
 });
 
