@@ -20,6 +20,7 @@ function createRoom(roomId, config) {
     players: {},
     ball: { x: W/2, y: H/2, vx: 0, vy: 0 },
     score: { A: 0, B: 0 },
+    trainingScore: 0, // Contatore unico per l'allenamento
     timeLeft: config.matchTime || 10 * 60,
     matchState: 'waiting',
     extraTimeLeft: 0,
@@ -27,7 +28,8 @@ function createRoom(roomId, config) {
     lastTick: Date.now(),
     MAX_PER_TEAM: Math.min(2, Math.max(1, config.maxPerTeam || 2)),
     MATCH_TIME: Math.max(30, Math.min(60 * 60, config.matchTime || 10 * 60)),
-    mode: config.mode || 'normal'
+    mode: config.mode || 'normal',
+    goalPause: 0
   };
 }
 
@@ -43,11 +45,26 @@ function resetPositions(room) {
 }
 
 function checkGoal(room) {
+  let scored = false;
+  
+  // Porta di sinistra (Squadra B segna)
   if (room.ball.x - BALL_R <= 0 && room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2) {
-    room.score.B++; resetPositions(room); io.to(room.id).emit('goal', { team: 'B', score: room.score }); return true;
+    if (room.mode === 'training') room.trainingScore++;
+    else room.score.B++;
+    scored = true;
   }
-  if (room.ball.x + BALL_R >= W && room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2) {
-    room.score.A++; resetPositions(room); io.to(room.id).emit('goal', { team: 'A', score: room.score }); return true;
+  // Porta di destra (Squadra A segna)
+  else if (room.ball.x + BALL_R >= W && room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2) {
+    if (room.mode === 'training') room.trainingScore++;
+    else room.score.A++;
+    scored = true;
+  }
+
+  if (scored) {
+    resetPositions(room);
+    if (room.mode !== 'training') io.to(room.id).emit('goal', { team: room.ball.x < W/2 ? 'B' : 'A', score: room.score });
+    room.goalPause = 5; // 5 secondi di pausa
+    return true;
   }
   return false;
 }
@@ -58,79 +75,87 @@ function tickRoom(room) {
   room.lastTick = now;
 
   if (room.matchState === 'playing') {
-    if (room.inExtraTime) {
-      room.extraTimeLeft -= dt;
-      if (room.extraTimeLeft <= 0) { room.matchState = 'ended'; io.to(room.id).emit('matchEnd', { score: room.score, winner: room.score.A > room.score.B ? 'A' : (room.score.B > room.score.A ? 'B' : 'pareggio') }); }
+    
+    if (room.goalPause > 0) {
+      room.goalPause -= dt;
+      if (room.goalPause <= 0) room.goalPause = 0;
     } else {
-      room.timeLeft -= dt;
-      if (room.timeLeft <= 0) {
-        if (room.score.A === room.score.B) { room.inExtraTime = true; room.extraTimeLeft = EXTRA_TIME; io.to(room.id).emit('extraTime', { extraTimeLeft: room.extraTimeLeft }); }
-        else { room.matchState = 'ended'; io.to(room.id).emit('matchEnd', { score: room.score, winner: room.score.A > room.score.B ? 'A' : 'B' }); }
-      }
-    }
-
-    for (const id in room.players) {
-      const p = room.players[id];
-      if (p.isBot && room.matchState === 'playing') {
-        const dx = room.ball.x - p.x;
-        const dy = room.ball.y - p.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist > 5) {
-          const speed = 150;
-          p.vx = (dx / dist) * speed;
-          p.vy = (dy / dist) * speed;
-          p.x += p.vx * dt;
-          p.y += p.vy * dt;
-        } else { p.vx = 0; p.vy = 0; }
-      }
-    }
-
-    const ids = Object.keys(room.players);
-    for (let i = 0; i < ids.length; i++) {
-      for (let j = i + 1; j < ids.length; j++) {
-        const a = room.players[ids[i]]; const b = room.players[ids[j]];
-        const dx = b.x - a.x; const dy = b.y - a.y;
-        const dist = Math.hypot(dx, dy); const minDist = PLAYER_R * 2;
-        if (dist < minDist && dist > 0) {
-          const overlap = (minDist - dist) / 2; const nx = dx / dist; const ny = dy / dist;
-          a.x -= nx * overlap; a.y -= ny * overlap; b.x += nx * overlap; b.y += ny * overlap;
+      // Timer scende solo se non c'è la pausa del gol e non è allenamento
+      if (room.mode !== 'training') {
+        if (room.inExtraTime) {
+          room.extraTimeLeft -= dt;
+          if (room.extraTimeLeft <= 0) { room.matchState = 'ended'; io.to(room.id).emit('matchEnd', { score: room.score, winner: room.score.A > room.score.B ? 'A' : (room.score.B > room.score.A ? 'B' : 'pareggio') }); }
+        } else {
+          room.timeLeft -= dt;
+          if (room.timeLeft <= 0) {
+            if (room.score.A === room.score.B) { room.inExtraTime = true; room.extraTimeLeft = EXTRA_TIME; io.to(room.id).emit('extraTime', { extraTimeLeft: room.extraTimeLeft }); }
+            else { room.matchState = 'ended'; io.to(room.id).emit('matchEnd', { score: room.score, winner: room.score.A > room.score.B ? 'A' : 'B' }); }
+          }
         }
       }
     }
 
-    for (const id in room.players) {
-      const p = room.players[id];
-      p.x = Math.max(PLAYER_R, Math.min(W - PLAYER_R, p.x));
-      p.y = Math.max(PLAYER_R, Math.min(H - PLAYER_R, p.y));
-      if (p.boostCooldown > 0) p.boostCooldown -= dt;
-    }
-
-    room.ball.x += room.ball.vx * dt; room.ball.y += room.ball.vy * dt;
-    room.ball.vx *= 0.985; room.ball.vy *= 0.985;
-
-    if (room.ball.x - BALL_R < 0) { if (!(room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2)) { room.ball.x = BALL_R; room.ball.vx = -room.ball.vx * 0.8; } }
-    if (room.ball.x + BALL_R > W) { if (!(room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2)) { room.ball.x = W - BALL_R; room.ball.vx = -room.ball.vx * 0.8; } }
-    if (room.ball.y - BALL_R < 0) { room.ball.y = BALL_R; room.ball.vy = -room.ball.vy * 0.8; }
-    if (room.ball.y + BALL_R > H) { room.ball.y = H - BALL_R; room.ball.vy = -room.ball.vy * 0.8; }
-
-    for (const id in room.players) {
-      const p = room.players[id];
-      const dx = room.ball.x - p.x; const dy = room.ball.y - p.y;
-      const dist = Math.hypot(dx, dy); const minDist = PLAYER_R + BALL_R;
-      if (dist < minDist && dist > 0) {
-        const nx = dx / dist; const ny = dy / dist; const overlap = minDist - dist;
-        room.ball.x += nx * overlap; room.ball.y += ny * overlap;
-        const pSpeed = Math.hypot(p.vx, p.vy);
-        room.ball.vx += nx * (pSpeed * 1.5 + 50); room.ball.vy += ny * (pSpeed * 1.5 + 50);
+    if (room.goalPause <= 0) {
+      for (const id in room.players) {
+        const p = room.players[id];
+        if (p.isBot) {
+          const dx = room.ball.x - p.x; const dy = room.ball.y - p.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > 5) {
+            const speed = 150;
+            p.vx = (dx / dist) * speed; p.vy = (dy / dist) * speed;
+            p.x += p.vx * dt; p.y += p.vy * dt;
+          } else { p.vx = 0; p.vy = 0; }
+        }
       }
+
+      const ids = Object.keys(room.players);
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = i + 1; j < ids.length; j++) {
+          const a = room.players[ids[i]]; const b = room.players[ids[j]];
+          const dx = b.x - a.x; const dy = b.y - a.y;
+          const dist = Math.hypot(dx, dy); const minDist = PLAYER_R * 2;
+          if (dist < minDist && dist > 0) {
+            const overlap = (minDist - dist) / 2; const nx = dx / dist; const ny = dy / dist;
+            a.x -= nx * overlap; a.y -= ny * overlap; b.x += nx * overlap; b.y += ny * overlap;
+          }
+        }
+      }
+
+      for (const id in room.players) {
+        const p = room.players[id];
+        p.x = Math.max(PLAYER_R, Math.min(W - PLAYER_R, p.x));
+        p.y = Math.max(PLAYER_R, Math.min(H - PLAYER_R, p.y));
+        if (p.boostCooldown > 0) p.boostCooldown -= dt;
+      }
+
+      room.ball.x += room.ball.vx * dt; room.ball.y += room.ball.vy * dt;
+      room.ball.vx *= 0.985; room.ball.vy *= 0.985;
+
+      if (room.ball.x - BALL_R < 0) { if (!(room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2)) { room.ball.x = BALL_R; room.ball.vx = -room.ball.vx * 0.8; } }
+      if (room.ball.x + BALL_R > W) { if (!(room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2)) { room.ball.x = W - BALL_R; room.ball.vx = -room.ball.vx * 0.8; } }
+      if (room.ball.y - BALL_R < 0) { room.ball.y = BALL_R; room.ball.vy = -room.ball.vy * 0.8; }
+      if (room.ball.y + BALL_R > H) { room.ball.y = H - BALL_R; room.ball.vy = -room.ball.vy * 0.8; }
+
+      for (const id in room.players) {
+        const p = room.players[id];
+        const dx = room.ball.x - p.x; const dy = room.ball.y - p.y;
+        const dist = Math.hypot(dx, dy); const minDist = PLAYER_R + BALL_R;
+        if (dist < minDist && dist > 0) {
+          const nx = dx / dist; const ny = dy / dist; const overlap = minDist - dist;
+          room.ball.x += nx * overlap; room.ball.y += ny * overlap;
+          const pSpeed = Math.hypot(p.vx, p.vy);
+          room.ball.vx += nx * (pSpeed * 1.5 + 50); room.ball.vy += ny * (pSpeed * 1.5 + 50);
+        }
+      }
+      checkGoal(room);
     }
-    checkGoal(room);
   }
 
   io.to(room.id).emit('state', {
-    players: room.players, ball: room.ball, score: room.score,
+    players: room.players, ball: room.ball, score: room.score, trainingScore: room.trainingScore,
     timeLeft: room.inExtraTime ? room.extraTimeLeft : room.timeLeft,
-    inExtraTime: room.inExtraTime, matchState: room.matchState, mode: room.mode
+    inExtraTime: room.inExtraTime, matchState: room.matchState, mode: room.mode, goalPause: room.goalPause
   });
 }
 
@@ -179,9 +204,7 @@ io.on('connection', (socket) => {
     currentRoomId = roomId;
     socket.join(roomId);
     
-    // Se il nome è vuoto, usa "Giocatore"
     const finalName = (playerName && playerName.trim() !== '') ? playerName.substring(0, 7) : 'Giocatore';
-
     room.players[socket.id] = { x: W/2, y: H/2, vx: 0, vy: 0, team, boost: 1.0, boostCooldown: 0, isBot: false, customColor: customColor || null, playerName: finalName };
 
     socket.emit('assigned', { team, playerId: socket.id, roomId });
@@ -195,13 +218,16 @@ io.on('connection', (socket) => {
       room.inExtraTime = false; room.extraTimeLeft = 0; room.score = { A: 0, B: 0 };
       resetPositions(room);
       room.lastTick = Date.now();
+      room.goalPause = 0;
       io.to(roomId).emit('matchStart', { matchTime: room.MATCH_TIME });
     }
   });
 
   socket.on('move', (data) => {
     if (!currentRoomId || !rooms[currentRoomId]) return;
-    const room = rooms[currentRoomId]; const p = room.players[socket.id];
+    const room = rooms[currentRoomId]; 
+    if (room.goalPause > 0) return;
+    const p = room.players[socket.id];
     if (!p || p.isBot) return;
     const speed = 220 * (p.boost || 1);
     p.vx = (data.dx || 0) * speed; p.vy = (data.dy || 0) * speed;
@@ -211,12 +237,24 @@ io.on('connection', (socket) => {
 
   socket.on('boost', () => {
     if (!currentRoomId || !rooms[currentRoomId]) return;
-    const room = rooms[currentRoomId]; const p = room.players[socket.id];
+    const room = rooms[currentRoomId]; 
+    if (room.goalPause > 0) return;
+    const p = room.players[socket.id];
     if (!p || p.isBot) return;
     if (p.boostCooldown <= 0) {
       p.boost = 2.0; p.boostCooldown = 2.0;
       setTimeout(() => { if (room.players[socket.id]) room.players[socket.id].boost = 1.0; }, 500);
     }
+  });
+
+  socket.on('leaveRoom', () => {
+    if (!currentRoomId || !rooms[currentRoomId]) return;
+    const room = rooms[currentRoomId];
+    delete room.players[socket.id];
+    socket.leave(currentRoomId);
+    if (Object.keys(room.players).filter(id => !room.players[id].isBot).length === 0) { delete rooms[currentRoomId]; }
+    socket.emit('leftRoom');
+    currentRoomId = null;
   });
 
   socket.on('disconnect', () => {
