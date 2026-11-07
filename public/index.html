@@ -321,8 +321,17 @@
     }
 
     function drawHUD() {
-      // HUD diverso se in allenamento
       if (state.mode === 'training') {
         document.getElementById('score').textContent = `${state.trainingScore} GOL`;
         document.getElementById('timer').textContent = 'ALLENAMENTO';
       } else {
+        document.getElementById('score').textContent = `${state.score.A} - ${state.score.B}`;
+        const t = Math.max(0, Math.ceil(state.timeLeft));
+        document.getElementById('timer').textContent = `${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}` + (state.inExtraTime ? ' (supp.)' : '');
+      }
+    }
+
+    loop();
+  </script>
+</body>
+</html>
