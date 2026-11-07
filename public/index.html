@@ -65,7 +65,6 @@
       </select>
     </label>
     
-    <!-- Menu Difficoltà Bot (appare solo se scegli Bot) -->
     <label id="botDifficultyArea" class="hidden">
       Difficoltà Bot:
       <select id="botDifficulty">
@@ -313,4 +312,49 @@
 
     function drawBall() {
       const b = state.ball; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, 10, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
-   
+    }
+
+    function drawPlayers() {
+      for (const id in state.players) {
+        const p = state.players[id];
+        
+        if (p.customColor) { ctx.fillStyle = p.customColor; } 
+        else { ctx.fillStyle = p.team === 'A' ? '#e63946' : '#457b9d'; }
+        
+        ctx.beginPath(); ctx.arc(p.x, p.y, 18, 0, Math.PI * 2); ctx.fill();
+        
+        if (id === myId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); }
+
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 14px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        if (p.team === 'A') { ctx.fillText('X', p.x, p.y); } 
+        else { ctx.fillText('O', p.x, p.y); }
+
+        if (p.playerName) {
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(p.x - 25, p.y - 38, 50, 16);
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px sans-serif';
+            ctx.fillText(p.playerName, p.x, p.y - 30);
+        }
+
+        if (p.isBot) { ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif'; ctx.fillText('BOT', p.x, p.y + 25); }
+      }
+    }
+
+    function drawHUD() {
+      if (state.mode === 'training') {
+        document.getElementById('score').textContent = `${state.trainingScore} GOL`;
+        document.getElementById('timer').textContent = 'ALLENAMENTO';
+      } else {
+        document.getElementById('score').textContent = `${state.score.A} - ${state.score.B}`;
+        const t = Math.max(0, Math.ceil(state.timeLeft));
+        document.getElementById('timer').textContent = `${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}` + (state.inExtraTime ? ' (supp.)' : '');
+      }
+    }
+
+    loop();
+  </script>
+</body>
+</html>
