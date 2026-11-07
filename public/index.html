@@ -5,148 +5,167 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Calcio Pallini</title>
   <style>
-    body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; color: #fff; }
-    canvas { display: block; margin: 0 auto; background: #2a7a2a; }
-    #hud { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); text-align: center; }
+    body { margin: 0; background: #0a0a0a; overflow: hidden; font-family: sans-serif; color: #fff; }
+    canvas { display: block; margin: 0 auto; background: #0a0a0a; border-radius: 8px; margin-top: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.8);}
+    #hud { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); text-align: center; background: rgba(0,0,0,0.6); padding: 8px 25px; border-radius: 8px; font-weight: bold; border: 1px solid #333;}
+    #score { font-size: 26px; letter-spacing: 2px;}
+    #timer { font-size: 16px; color: #4ade80; margin-top: 2px;}
     
     #msg { 
       position: absolute; top: 65%; left: 50%; transform: translate(-50%, -50%); 
-      font-size: 32px; font-weight: bold; color: rgba(255, 215, 0, 0.7); 
-      text-shadow: 1px 1px 3px rgba(0,0,0,0.5); text-align: center; pointer-events: none; 
+      font-size: 40px; font-weight: bold; color: rgba(255, 215, 0, 0.9); 
+      text-shadow: 2px 2px 5px rgba(0,0,0,0.8); text-align: center; pointer-events: none; 
+      font-family: 'Arial Black', sans-serif; letter-spacing: 2px; z-index: 5;
     }
 
     #countdown {
       position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
-      font-size: 100px; font-weight: bold; color: #fff;
-      text-shadow: 2px 2px 8px rgba(0,0,0,0.8); pointer-events: none;
-      opacity: 0; transition: opacity 0.3s;
+      font-size: 120px; font-weight: bold; color: #fff;
+      text-shadow: 2px 2px 10px rgba(0,0,0,0.9); pointer-events: none;
+      opacity: 0; transition: opacity 0.3s; font-family: 'Arial Black', sans-serif; z-index: 5;
     }
     
+    #langSelector {
+      position: absolute; top: 15px; left: 15px; z-index: 50;
+      background: #222; color: white; border: 1px solid #444; padding: 8px; border-radius: 6px;
+      cursor: pointer; font-weight: bold; font-size: 14px;
+    }
+
     .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; z-index: 10; overflow-y: auto; }
-    .screen h1 { margin: 0; }
-    .screen label { display: flex; flex-direction: column; gap: 5px; font-size: 16px; }
-    .screen select, .screen button, .screen input { padding: 8px 12px; font-size: 16px; border-radius: 6px; border: none; }
-    .screen button { background: #2a7a2a; color: #fff; cursor: pointer; font-weight: bold; padding: 12px 24px; font-size: 18px; }
-    .screen button:hover { background: #3a9a3a; }
+    .screen h1 { margin: 0; font-size: 40px; text-shadow: 0 0 10px rgba(255,255,255,0.3);}
+    .screen label { display: flex; flex-direction: column; gap: 5px; font-size: 16px; width: 100%; max-width: 300px; }
+    .screen select, .screen button, .screen input { padding: 10px 15px; font-size: 16px; border-radius: 6px; border: none; }
+    .screen button { background: #2a7a2a; color: #fff; cursor: pointer; font-weight: bold; padding: 15px 30px; font-size: 20px; transition: 0.2s; margin-top: 10px; width: auto; }
+    .screen button:hover { background: #3a9a3a; transform: scale(1.05); }
     .screen .secondary { background: #555; }
     .screen .secondary:hover { background: #777; }
     .msg { color: #aaa; font-size: 14px; min-height: 20px; text-align: center; }
-    .code-display { font-size: 32px; font-weight: bold; letter-spacing: 4px; color: #4ade80; }
-    .row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    .code-display { font-size: 40px; font-weight: bold; letter-spacing: 6px; color: #4ade80; text-shadow: 0 0 15px rgba(74, 222, 128, 0.5); }
+    .row { display: flex; gap: 15px; align-items: center; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 400px;}
     .hidden { display: none !important; }
-    .color-picker { display: flex; align-items: center; gap: 10px; }
-    .color-picker input { width: 40px; height: 40px; padding: 0; cursor: pointer; }
-    .input-text { text-align: center; font-weight: bold; }
+    .color-picker { display: flex; align-items: center; gap: 10px; justify-content: space-between; width: 100%;}
+    .color-picker input { width: 50px; height: 40px; padding: 0; cursor: pointer; border-radius: 4px;}
+    .input-text { text-align: center; font-weight: bold; font-size: 18px; }
 
     #exitBtn {
-      position: absolute; top: 10px; right: 10px; background: #e63946; color: white;
-      border: none; padding: 10px 15px; font-weight: bold; border-radius: 6px; cursor: pointer; z-index: 20;
+      position: absolute; top: 15px; right: 15px; background: #e63946; color: white;
+      border: none; padding: 10px 20px; font-weight: bold; font-size: 16px; border-radius: 6px; cursor: pointer; z-index: 20; transition: 0.2s;
     }
-    #exitBtn:hover { background: #ff4d5a; }
+    #exitBtn:hover { background: #ff4d5a; transform: scale(1.05); }
   </style>
 </head>
 <body>
+  
+  <select id="langSelector" onchange="changeLanguage(this.value)">
+    <option value="it">🇮🇹 IT</option>
+    <option value="en">🇬🇧 EN</option>
+    <option value="fr">🇫🇷 FR</option>
+    <option value="de">🇩🇪 DE</option>
+    <option value="es">🇪🇸 ES</option>
+    <option value="sq">🇦🇱 SQ</option>
+  </select>
+
   <div id="homeScreen" class="screen">
-    <h1>⚽ Calcio Pallini</h1>
-    <div class="row">
-      <button id="goCreate">Crea una stanza</button>
-      <button id="goJoin" class="secondary">Entra in una stanza</button>
+    <h1 data-i18n="title">⚽ Calcio Pallini</h1>
+    <div class="row" style="flex-direction: column;">
+      <button id="goCreate" data-i18n="createRoom" style="width: 100%;">Crea una stanza</button>
+      <button id="goJoin" class="secondary" data-i18n="joinRoom" style="width: 100%;">Entra in una stanza</button>
     </div>
   </div>
 
   <div id="createScreen" class="screen hidden">
-    <h1>Crea Stanza</h1>
+    <h1 data-i18n="createRoomTitle">Crea Stanza</h1>
     <label>
-      Modalità:
+      <span data-i18n="mode">Modalità:</span>
       <select id="createMode">
-        <option value="normal">Classica (con amici)</option>
-        <option value="training">Allenamento (solo)</option>
-        <option value="bots">Partita con Bot</option>
+        <option value="normal" data-i18n="modeNormal">Classica (con amici)</option>
+        <option value="training" data-i18n="modeTraining">Allenamento (solo)</option>
+        <option value="bots" data-i18n="modeBots">Partita con Bot</option>
       </select>
     </label>
     
     <label id="botDifficultyArea" class="hidden">
-      Difficoltà Bot:
+      <span data-i18n="botDifficulty">Difficoltà Bot:</span>
       <select id="botDifficulty">
-        <option value="easy">Facile</option>
-        <option value="medium" selected>Medio</option>
-        <option value="hard">Difficile</option>
+        <option value="easy" data-i18n="diffEasy">Facile</option>
+        <option value="medium" selected data-i18n="diffMedium">Medio</option>
+        <option value="hard" data-i18n="diffHard">Difficile</option>
       </select>
     </label>
 
     <label>
-      Giocatori per squadra (solo in Classica):
+      <span data-i18n="playersPerTeam">Giocatori per squadra:</span>
       <select id="createMaxPerTeam">
         <option value="1">1 vs 1</option>
         <option value="2" selected>2 vs 2 (max)</option>
       </select>
     </label>
     <label>
-      Durata partita:
+      <span data-i18n="matchTime">Durata partita:</span>
       <select id="createMatchTime">
-        <option value="60">1 minuto</option>
-        <option value="180">3 minuti</option>
-        <option value="300">5 minuti</option>
-        <option value="600" selected>10 minuti</option>
+        <option value="60" data-i18n="time1min">1 minuto</option>
+        <option value="180" data-i18n="time3min">3 minuti</option>
+        <option value="300" data-i18n="time5min">5 minuti</option>
+        <option value="600" selected data-i18n="time10min">10 minuti</option>
       </select>
     </label>
-    <button id="doCreate">Genera Codice Stanza</button>
+    <button id="doCreate" data-i18n="generateCode">Genera Codice Stanza</button>
     <p id="createMsg" class="msg"></p>
     
-    <div id="codeArea" class="hidden" style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
-      <p>Codice stanza:</p>
+    <div id="codeArea" class="hidden" style="display: flex; flex-direction: column; gap: 15px; align-items: center; width: 100%;">
+      <p data-i18n="roomCode">Codice stanza:</p>
       <div id="roomCodeDisplay" class="code-display"></div>
       
-      <div style="background: #222; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px;">
+      <div style="background: #222; padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 300px; border: 1px solid #444;">
         <label style="flex-direction: row; align-items: center; justify-content: space-between; gap: 10px;">
-          Il tuo nome (max 7):
-          <input type="text" id="playerName" class="input-text" maxlength="7" placeholder="Il tuo nome" style="width: 120px;">
+          <span data-i18n="yourName">Il tuo nome (max 7):</span>
+          <input type="text" id="playerName" class="input-text" maxlength="7" placeholder="Nome" style="width: 120px;">
         </label>
         <div class="color-picker">
-          <label style="flex-direction: row;">Scegli il colore:</label>
+          <label style="width: auto;" data-i18n="chooseColor">Scegli il colore:</label>
           <input type="color" id="playerColor" value="#e63946">
         </div>
         <div id="teamChoiceArea" class="hidden" style="display: flex; flex-direction: column; gap: 5px;">
-          <label style="flex-direction: row;">Scegli la squadra:</label>
+          <label style="width: auto;" data-i18n="chooseTeam">Scegli la squadra:</label>
           <select id="teamSelect">
-            <option value="">Automatico</option>
-            <option value="A">Squadra A (Sinistra)</option>
-            <option value="B">Squadra B (Destra)</option>
+            <option value="" data-i18n="auto">Automatico</option>
+            <option value="A" data-i18n="teamA">Squadra A (Sinistra)</option>
+            <option value="B" data-i18n="teamB">Squadra B (Destra)</option>
           </select>
         </div>
       </div>
 
-      <p id="lobbyStatus" class="msg">In attesa che gli altri entrino...</p>
-      <button id="enterCreated" class="hidden">Entra nella partita</button>
+      <p id="lobbyStatus" class="msg" data-i18n="waitingOthers">In attesa che gli altri entrino...</p>
+      <button id="enterCreated" class="hidden" data-i18n="enterMatch">Entra nella partita</button>
     </div>
-    <button id="backFromCreate" class="secondary">Indietro</button>
+    <button id="backFromCreate" class="secondary" data-i18n="back">Indietro</button>
   </div>
 
   <div id="joinScreen" class="screen hidden">
-    <h1>Entra in una Stanza</h1>
+    <h1 data-i18n="joinRoomTitle">Entra in una Stanza</h1>
     <label>
-      Codice stanza:
-      <input id="joinCodeInput" type="text" placeholder="Es. ABCD" maxlength="4" style="text-transform: uppercase; text-align: center; font-size: 20px; letter-spacing: 3px;">
+      <span data-i18n="roomCode">Codice stanza:</span>
+      <input id="joinCodeInput" type="text" placeholder="Es. ABCD" maxlength="4" style="text-transform: uppercase; text-align: center; font-size: 24px; letter-spacing: 4px;">
     </label>
     
-    <div style="background: #222; padding: 15px; border-radius: 8px; display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+    <div style="background: #222; padding: 20px; border-radius: 10px; display: flex; flex-direction: column; gap: 15px; margin-top: 10px; width: 100%; max-width: 300px; border: 1px solid #444;">
         <label style="flex-direction: row; align-items: center; justify-content: space-between; gap: 10px;">
-          Il tuo nome (max 7):
-          <input type="text" id="joinPlayerName" class="input-text" maxlength="7" placeholder="Il tuo nome" style="width: 120px;">
+          <span data-i18n="yourName">Il tuo nome (max 7):</span>
+          <input type="text" id="joinPlayerName" class="input-text" maxlength="7" placeholder="Nome" style="width: 120px;">
         </label>
         <div class="color-picker">
-          <label style="flex-direction: row;">Scegli il colore:</label>
+          <label style="width: auto;" data-i18n="chooseColor">Scegli il colore:</label>
           <input type="color" id="joinPlayerColor" value="#457b9d">
         </div>
-      </div>
+    </div>
 
-    <button id="doJoin" style="margin-top: 10px;">Entra</button>
+    <button id="doJoin" data-i18n="enter">Entra</button>
     <p id="joinMsg" class="msg"></p>
-    <button id="backFromJoin" class="secondary">Indietro</button>
+    <button id="backFromJoin" class="secondary" data-i18n="back">Indietro</button>
   </div>
 
   <canvas id="c" width="900" height="600" class="hidden"></canvas>
-  <button id="exitBtn" class="hidden">ESCI</button>
+  <button id="exitBtn" class="hidden" data-i18n="exit">ESCI</button>
   
   <div id="hud" class="hidden">
     <div id="score">0 - 0</div>
@@ -157,6 +176,124 @@
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
+        // ====== DIZIONARIO TRADUZIONI COMPLETO ======
+    const translations = {
+      it: {
+        title: "⚽ Calcio Pallini", createRoom: "Crea una stanza", joinRoom: "Entra in una stanza",
+        createRoomTitle: "Crea Stanza", mode: "Modalità:", modeNormal: "Classica (con amici)",
+        modeTraining: "Allenamento (solo)", modeBots: "Partita con Bot", botDifficulty: "Difficoltà Bot:",
+        diffEasy: "Facile", diffMedium: "Medio", diffHard: "Difficile", playersPerTeam: "Giocatori per squadra:",
+        matchTime: "Durata partita:", time1min: "1 minuto", time3min: "3 minuti", time5min: "5 minuti", time10min: "10 minuti",
+        generateCode: "Genera Codice Stanza", roomCode: "Codice stanza:", yourName: "Il tuo nome (max 7):",
+        chooseColor: "Scegli il colore:", chooseTeam: "Scegli la squadra:", auto: "Automatico",
+        teamA: "Squadra A (Sinistra)", teamB: "Squadra B (Destra)", waitingOthers: "In attesa che gli altri entrino...",
+        enterMatch: "Entra nella partita", back: "Indietro", joinRoomTitle: "Entra in una Stanza",
+        enter: "Entra", exit: "ESCI", goal: "GOL! Squadra {t} segna!", draw: "Pareggio!",
+        win: "Vince la squadra {w}!", training: "ALLENAMENTO", goals: "GOL", extraTime: "Pareggio! Supplementare!",
+        insertCode: "Inserisci un codice.", roomFull: "Stanza piena.", trainingSolo: "Premi Entra per allenarti da solo.",
+        playBot: "Premi Entra per giocare contro il Bot.", generating: "Generazione in corso...", connecting: "Connessione..."
+      },
+      en: {
+        title: "⚽ Calcio Pallini", createRoom: "Create a room", joinRoom: "Join a room",
+        createRoomTitle: "Create Room", mode: "Mode:", modeNormal: "Classic (with friends)",
+        modeTraining: "Training (solo)", modeBots: "Play with Bot", botDifficulty: "Bot Difficulty:",
+        diffEasy: "Easy", diffMedium: "Medium", diffHard: "Hard", playersPerTeam: "Players per team:",
+        matchTime: "Match duration:", time1min: "1 minute", time3min: "3 minutes", time5min: "5 minutes", time10min: "10 minutes",
+        generateCode: "Generate Room Code", roomCode: "Room code:", yourName: "Your name (max 7):",
+        chooseColor: "Choose color:", chooseTeam: "Choose team:", auto: "Auto",
+        teamA: "Team A (Left)", teamB: "Team B (Right)", waitingOthers: "Waiting for others...",
+        enterMatch: "Enter match", back: "Back", joinRoomTitle: "Join a Room",
+        enter: "Enter", exit: "EXIT", goal: "GOAL! Team {t} scores!", draw: "Draw!",
+        win: "Team {w} wins!", training: "TRAINING", goals: "GOALS", extraTime: "Draw! Extra time!",
+        insertCode: "Enter a code.", roomFull: "Room full.", trainingSolo: "Click Enter to train alone.",
+        playBot: "Click Enter to play against the Bot.", generating: "Generating...", connecting: "Connecting..."
+      },
+      fr: {
+        title: "⚽ Calcio Pallini", createRoom: "Créer une salle", joinRoom: "Rejoindre une salle",
+        createRoomTitle: "Créer une Salle", mode: "Mode:", modeNormal: "Classique (avec amis)",
+        modeTraining: "Entraînement (seul)", modeBots: "Jouer avec Bot", botDifficulty: "Difficulté Bot:",
+        diffEasy: "Facile", diffMedium: "Moyen", diffHard: "Difficile", playersPerTeam: "Joueurs par équipe:",
+        matchTime: "Durée du match:", time1min: "1 minute", time3min: "3 minutes", time5min: "5 minutes", time10min: "10 minutes",
+        generateCode: "Générer Code Salle", roomCode: "Code salle:", yourName: "Votre nom (max 7):",
+        chooseColor: "Choisir couleur:", chooseTeam: "Choisir équipe:", auto: "Auto",
+        teamA: "Équipe A (Gauche)", teamB: "Équipe B (Droite)", waitingOthers: "En attente des autres...",
+        enterMatch: "Entrer dans le match", back: "Retour", joinRoomTitle: "Rejoindre une Salle",
+        enter: "Entrer", exit: "SORTIR", goal: "BUT! L'équipe {t} marque!", draw: "Match nul!",
+        win: "L'équipe {w} gagne!", training: "ENTRAÎNEMENT", goals: "BUTS", extraTime: "Égalité! Prolongation!",
+        insertCode: "Entrez un code.", roomFull: "Salle pleine.", trainingSolo: "Cliquez sur Entrer pour vous entraîner seul.",
+        playBot: "Cliquez sur Entrer pour jouer contre le Bot.", generating: "Génération...", connecting: "Connexion..."
+      },
+      de: {
+        title: "⚽ Calcio Pallini", createRoom: "Raum erstellen", joinRoom: "Raum beitreten",
+        createRoomTitle: "Raum Erstellen", mode: "Modus:", modeNormal: "Klassisch (mit Freunden)",
+        modeTraining: "Training (allein)", modeBots: "Spiel mit Bot", botDifficulty: "Bot-Schwierigkeit:",
+        diffEasy: "Einfach", diffMedium: "Mittel", diffHard: "Schwer", playersPerTeam: "Spieler pro Team:",
+        matchTime: "Spieldauer:", time1min: "1 Minute", time3min: "3 Minuten", time5min: "5 Minuten", time10min: "10 Minuten",
+        generateCode: "Raumcode Generieren", roomCode: "Raumcode:", yourName: "Dein Name (max 7):",
+        chooseColor: "Farbe wählen:", chooseTeam: "Team wählen:", auto: "Auto",
+        teamA: "Team A (Links)", teamB: "Team B (Rechts)", waitingOthers: "Warte auf andere...",
+        enterMatch: "Spiel betreten", back: "Zurück", joinRoomTitle: "Raum Beitreten",
+        enter: "Betreten", exit: "BEENDEN", goal: "TOR! Team {t} trifft!", draw: "Unentschieden!",
+        win: "Team {w} gewinnt!", training: "TRAINING", goals: "TORE", extraTime: "Unentschieden! Verlängerung!",
+        insertCode: "Code eingeben.", roomFull: "Raum voll.", trainingSolo: "Klicke auf Betreten, um allein zu trainieren.",
+        playBot: "Klicke auf Betreten, um gegen den Bot zu spielen.", generating: "Generieren...", connecting: "Verbinden..."
+      },
+      es: {
+        title: "⚽ Calcio Pallini", createRoom: "Crear una sala", joinRoom: "Unirse a una sala",
+        createRoomTitle: "Crear Sala", mode: "Modo:", modeNormal: "Clásico (con amigos)",
+        modeTraining: "Entrenamiento (solo)", modeBots: "Jugar con Bot", botDifficulty: "Dificultad del Bot:",
+        diffEasy: "Fácil", diffMedium: "Medio", diffHard: "Difícil", playersPerTeam: "Jugadores por equipo:",
+        matchTime: "Duración del partido:", time1min: "1 minuto", time3min: "3 minutos", time5min: "5 minutos", time10min: "10 minutos",
+        generateCode: "Generar Código de Sala", roomCode: "Código de sala:", yourName: "Tu nombre (max 7):",
+        chooseColor: "Elegir color:", chooseTeam: "Elegir equipo:", auto: "Auto",
+        teamA: "Equipo A (Izquierda)", teamB: "Equipo B (Derecha)", waitingOthers: "Esperando a los demás...",
+        enterMatch: "Entrar al partido", back: "Atrás", joinRoomTitle: "Unirse a una Sala",
+        enter: "Entrar", exit: "SALIR", goal: "¡GOL! ¡Equipo {t} marca!", draw: "¡Empate!",
+        win: "¡Gana el equipo {w}!", training: "ENTRENAMIENTO", goals: "GOLES", extraTime: "¡Empate! ¡Prórroga!",
+        insertCode: "Introduce un código.", roomFull: "Sala llena.", trainingSolo: "Haz clic en Entrar para entrenar solo.",
+        playBot: "Haz clic en Entrar para jugar contra el Bot.", generating: "Generando...", connecting: "Conectando..."
+      },
+      sq: {
+        title: "⚽ Calcio Pallini", createRoom: "Krijo dhomë", joinRoom: "Bashkohu në dhomë",
+        createRoomTitle: "Krijo Dhomë", mode: "Modaliteti:", modeNormal: "Klasik (me miq)",
+        modeTraining: "Stërvitje (vetëm)", modeBots: "Luaj me Bot", botDifficulty: "Vështirësia e Botit:",
+        diffEasy: "Lehtë", diffMedium: "Mesatare", diffHard: "Vështirë", playersPerTeam: "Lojtarë për ekip:",
+        matchTime: "Kohëzgjatja e ndeshjes:", time1min: "1 minutë", time3min: "3 minuta", time5min: "5 minuta", time10min: "10 minuta",
+        generateCode: "Gjenero Kodin e Dhomës", roomCode: "Kodi i dhomës:", yourName: "Emri juaj (max 7):",
+        chooseColor: "Zgjidh ngjyrën:", chooseTeam: "Zgjidh ekipin:", auto: "Auto",
+        teamA: "Ekipi A (Majtas)", teamB: "Ekipi B (Djathtas)", waitingOthers: "Duke pritur të tjerët...",
+        enterMatch: "Fut në ndeshje", back: "Kthehu", joinRoomTitle: "Bashkohu në një Dhomë",
+        enter: "Fut", exit: "DIL", goal: "GOL! Ekipi {t} shënon!", draw: "Barazim!",
+        win: "Ekipi {w} fiton!", training: "STËRVITJE", goals: "GOLA", extraTime: "Barazim! Kohë shtesë!",
+        insertCode: "Vendos një kod.", roomFull: "Dhoma është plot.", trainingSolo: "Kliko Fut për t'u stërvitur vetëm.",
+        playBot: "Kliko Fut për të luajtur kundër Botit.", generating: "Duke gjeneruar...", connecting: "Duke u lidhur..."
+      }
+    };
+
+    let currentLang = localStorage.getItem('gameLang') || 'it';
+    document.getElementById('langSelector').value = currentLang;
+
+    function t(key, vars = {}) {
+      let text = translations[currentLang][key] || translations['it'][key] || key;
+      for (let k in vars) text = text.replace(`{${k}}`, vars[k]);
+      return text;
+    }
+
+    function changeLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('gameLang', lang);
+      translatePage();
+    }
+
+    function translatePage() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.innerText = t(el.getAttribute('data-i18n'));
+      });
+    }
+    
+    translatePage();
+
+    // ====== LOGICA DEL GIOCO ======
     const canvas = document.getElementById('c');
     const ctx = canvas.getContext('2d');
     const socket = io();
@@ -166,6 +303,11 @@
     let currentMode = 'normal';
     let state = { players: {}, ball: { x: W/2, y: H/2 }, score: { A: 0, B: 0 }, trainingScore: 0, timeLeft: 600, matchState: 'waiting', inExtraTime: false, goalPause: 0, mode: 'normal' };
     let keys = {};
+    
+    let crowd = [];
+    for(let i=0; i<400; i++) {
+        crowd.push({ x: Math.random()*W, y: Math.random()*H, color: ['#e63946', '#457b9d', '#f4a261', '#2a9d8f', '#e9c46a'][Math.floor(Math.random()*5)], offset: Math.random()*Math.PI*2 });
+    }
 
     const homeScreen = document.getElementById('homeScreen');
     const createScreen = document.getElementById('createScreen');
@@ -207,7 +349,7 @@
       const matchTime = parseInt(document.getElementById('createMatchTime').value);
       const botDifficulty = document.getElementById('botDifficulty').value;
       socket.emit('createRoom', { maxPerTeam, matchTime, mode, botDifficulty });
-      createMsg.textContent = 'Generazione in corso...';
+      createMsg.textContent = t('generating');
     };
 
     socket.on('roomCreated', (data) => {
@@ -216,9 +358,9 @@
       codeArea.classList.remove('hidden');
       createMsg.textContent = '';
       
-      if (currentMode === 'training') lobbyStatus.textContent = 'Premi Entra per allenarti da solo.';
-      else if (currentMode === 'bots') lobbyStatus.textContent = 'Premi Entra per giocare contro il Bot.';
-      else lobbyStatus.textContent = 'In attesa che gli altri entrino...';
+      if (currentMode === 'training') lobbyStatus.textContent = t('trainingSolo');
+      else if (currentMode === 'bots') lobbyStatus.textContent = t('playBot');
+      else lobbyStatus.textContent = t('waitingOthers');
       enterCreated.classList.remove('hidden');
     });
 
@@ -232,16 +374,16 @@
 
     document.getElementById('doJoin').onclick = () => {
       const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
-      if (!code) { joinMsg.textContent = 'Inserisci un codice.'; return; }
+      if (!code) { joinMsg.textContent = t('insertCode'); return; }
       myRoomId = code;
       const customColor = document.getElementById('joinPlayerColor').value;
       const playerName = document.getElementById('joinPlayerName').value;
       socket.emit('joinGame', { roomId: code, customColor, playerName });
-      joinMsg.textContent = 'Connessione...';
+      joinMsg.textContent = t('connecting');
     };
 
     socket.on('errorMsg', (msg) => { joinMsg.textContent = msg; createMsg.textContent = msg; });
-    socket.on('full', () => { joinMsg.textContent = 'Stanza piena.'; createMsg.textContent = 'Stanza piena.'; });
+    socket.on('full', () => { joinMsg.textContent = t('roomFull'); createMsg.textContent = t('roomFull'); });
 
     socket.on('assigned', (data) => {
       myTeam = data.team; myId = data.playerId;
@@ -253,9 +395,7 @@
       }
     });
 
-    exitBtn.onclick = () => {
-      socket.emit('leaveRoom');
-    };
+    exitBtn.onclick = () => { socket.emit('leaveRoom'); };
 
     socket.on('leftRoom', () => {
       myTeam = null; myId = null; myRoomId = null;
@@ -267,12 +407,15 @@
     socket.on('matchStart', () => { document.getElementById('msg').textContent = ''; });
     
     socket.on('goal', (data) => { 
-      document.getElementById('msg').textContent = `GOL! Squadra ${data.team} segna!`; 
+      document.getElementById('msg').textContent = t('goal', { t: data.team });
       setTimeout(() => { document.getElementById('msg').textContent = ''; }, 3000); 
     });
     
-    socket.on('extraTime', () => { document.getElementById('msg').textContent = 'Pareggio! Supplementare!'; setTimeout(() => document.getElementById('msg').textContent = '', 2000); });
-    socket.on('matchEnd', (data) => { document.getElementById('msg').textContent = data.winner === 'pareggio' ? 'Pareggio!' : `Vince ${data.winner}!`; });
+    socket.on('extraTime', () => { document.getElementById('msg').textContent = t('extraTime'); setTimeout(() => document.getElementById('msg').textContent = '', 2000); });
+    socket.on('matchEnd', (data) => { 
+        if (data.winner === 'pareggio') document.getElementById('msg').textContent = t('draw');
+        else document.getElementById('msg').textContent = t('win', { w: data.winner });
+    });
     
     socket.on('state', (s) => { state = s; });
 
@@ -287,7 +430,12 @@
         socket.emit('move', { dx, dy });
       }
       ctx.clearRect(0, 0, W, H);
-      drawField(); drawBall(); drawPlayers(); drawHUD(); updateCountdown();
+      drawStadium();
+      drawField(); 
+      drawBall(); 
+      drawPlayers(); 
+      drawHUD(); 
+      updateCountdown();
       requestAnimationFrame(loop);
     }
 
@@ -301,56 +449,141 @@
       }
     }
 
+    function drawStadium() {
+        ctx.fillStyle = '#0a0a0a';
+        ctx.fillRect(0, 0, W, H);
+
+        const time = Date.now() / 300;
+        crowd.forEach(p => {
+            if (p.x < 20 || p.x > W-20 || p.y < 20 || p.y > H-20) {
+                let jump = Math.abs(Math.sin(time + p.offset)) * 5;
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y - jump, 3, 0, Math.PI*2);
+                ctx.fill();
+            }
+        });
+
+        ctx.fillStyle = '#1a1a1a';
+        ctx.fillRect(0, 0, W, 20);
+        ctx.fillRect(0, H-20, W, 20);
+        ctx.fillRect(0, 0, 20, H);
+        ctx.fillRect(W-20, 0, 20, H);
+
+        ctx.fillStyle = '#4ade80';
+        ctx.font = 'bold 12px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('CALCIO PALLINI', W/2, 10);
+        ctx.fillText('CALCIO PALLINI', W/2, H-10);
+    }
+
     function drawField() {
-      ctx.fillStyle = '#2a7a2a'; ctx.fillRect(0, 0, W, H);
-      ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.strokeRect(0, 0, W, H);
-      ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
-      ctx.beginPath(); ctx.arc(W/2, H/2, 80, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,0.2)';
-      ctx.fillRect(0, H/2 - GOAL_H/2, 8, GOAL_H); ctx.fillRect(W - 8, H/2 - GOAL_H/2, 8, GOAL_H);
+      const stripeHeight = (H - 40) / 10;
+      for (let i = 0; i < 10; i++) {
+        ctx.fillStyle = i % 2 === 0 ? '#2d8a2d' : '#277a27';
+        ctx.fillRect(20, 20 + i * stripeHeight, W - 40, stripeHeight);
+      }
+
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth = 3;
+
+      ctx.strokeRect(20, 20, W - 40, H - 40);
+      ctx.beginPath(); ctx.moveTo(W/2, 20); ctx.lineTo(W/2, H - 20); ctx.stroke();
+      ctx.beginPath(); ctx.arc(W/2, H/2, 70, 0, Math.PI * 2); ctx.stroke();
+      
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.beginPath(); ctx.arc(W/2, H/2, 4, 0, Math.PI * 2); ctx.fill();
+
+      ctx.strokeRect(20, H/2 - 120, 100, 240);
+      ctx.strokeRect(W - 120, H/2 - 120, 100, 240);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.fillRect(10, H/2 - GOAL_H/2, 10, GOAL_H);
+      ctx.fillRect(W - 20, H/2 - GOAL_H/2, 10, GOAL_H);
+      
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(20, H/2 - GOAL_H/2); ctx.lineTo(20, H/2 + GOAL_H/2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(W - 20, H/2 - GOAL_H/2); ctx.lineTo(W - 20, H/2 + GOAL_H/2); ctx.stroke();
     }
 
     function drawBall() {
-      const b = state.ball; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, 10, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
+      const b = state.ball; 
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath(); ctx.ellipse(b.x, b.y + 5, 10, 5, 0, 0, Math.PI * 2); ctx.fill();
+
+      ctx.fillStyle = '#fff'; 
+      ctx.beginPath(); ctx.arc(b.x, b.y, 10, 0, Math.PI * 2); ctx.fill(); 
+      
+      ctx.fillStyle = '#222';
+      ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(b.x - 5, b.y - 3, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(b.x + 5, b.y - 3, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(b.x - 3, b.y + 5, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(b.x + 3, b.y + 5, 2, 0, Math.PI * 2); ctx.fill();
+
+      ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
     }
 
     function drawPlayers() {
       for (const id in state.players) {
         const p = state.players[id];
         
-        if (p.customColor) { ctx.fillStyle = p.customColor; } 
-        else { ctx.fillStyle = p.team === 'A' ? '#e63946' : '#457b9d'; }
-        
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.beginPath(); ctx.ellipse(p.x, p.y + 15, 18, 8, 0, 0, Math.PI * 2); ctx.fill();
+
+        let baseColor = p.customColor ? p.customColor : (p.team === 'A' ? '#e63946' : '#457b9d');
+        let gradient = ctx.createRadialGradient(p.x - 5, p.y - 5, 2, p.x, p.y, 18);
+        gradient.addColorStop(0, '#ffffff');
+        gradient.addColorStop(0.3, baseColor); 
+        gradient.addColorStop(1, '#000000');
+
+        ctx.fillStyle = gradient;
         ctx.beginPath(); ctx.arc(p.x, p.y, 18, 0, Math.PI * 2); ctx.fill();
         
-        if (id === myId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); }
-
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 14px sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        if (p.team === 'A') { ctx.fillText('X', p.x, p.y); } 
-        else { ctx.fillText('O', p.x, p.y); }
-
-        if (p.playerName) {
-            ctx.fillStyle = 'rgba(0,0,0,0.6)';
-            ctx.fillRect(p.x - 25, p.y - 38, 50, 16);
-            ctx.fillStyle = '#fff';
-            ctx.font = '12px sans-serif';
-            ctx.fillText(p.playerName, p.x, p.y - 30);
+        if (id === myId) { 
+          ctx.strokeStyle = '#fff'; 
+          ctx.lineWidth = 3; 
+          ctx.stroke(); 
+          ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+          ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(p.x, p.y, 22, 0, Math.PI * 2); ctx.stroke();
         }
 
-        if (p.isBot) { ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif'; ctx.fillText('BOT', p.x, p.y + 25); }
+        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+        ctx.font = 'bold 16px Arial';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        if (p.team === 'A') { ctx.fillText('X', p.x, p.y+1); } 
+        else { ctx.fillText('O', p.x, p.y+1); }
+
+        if (p.playerName) {
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.beginPath();
+            ctx.roundRect(p.x - 30, p.y - 45, 60, 18, 5);
+            ctx.fill();
+            
+            ctx.fillStyle = (id === myId) ? '#4ade80' : '#fff';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(p.playerName, p.x, p.y - 36);
+        }
+
+        if (p.isBot) { 
+          ctx.fillStyle = '#ffeb3b'; 
+          ctx.font = 'bold 10px Arial'; 
+          ctx.fillText('BOT', p.x, p.y + 28); 
+        }
       }
     }
 
     function drawHUD() {
       if (state.mode === 'training') {
-        document.getElementById('score').textContent = `${state.trainingScore} GOL`;
-        document.getElementById('timer').textContent = 'ALLENAMENTO';
+        document.getElementById('score').textContent = `${state.trainingScore} ${t('goals')}`;
+        document.getElementById('timer').textContent = t('training');
       } else {
         document.getElementById('score').textContent = `${state.score.A} - ${state.score.B}`;
-        const t = Math.max(0, Math.ceil(state.timeLeft));
-        document.getElementById('timer').textContent = `${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}` + (state.inExtraTime ? ' (supp.)' : '');
+        const tLeft = Math.max(0, Math.ceil(state.timeLeft));
+        document.getElementById('timer').textContent = `${Math.floor(tLeft / 60)}:${(tLeft % 60).toString().padStart(2, '0')}` + (state.inExtraTime ? ' (supp.)' : '');
       }
     }
 
