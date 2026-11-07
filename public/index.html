@@ -10,16 +10,16 @@
     #hud { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); text-align: center; }
     
     #msg { 
-      position: absolute; 
-      top: 65%; 
-      left: 50%; 
-      transform: translate(-50%, -50%); 
-      font-size: 32px; 
-      font-weight: bold;
-      color: rgba(255, 215, 0, 0.7); 
-      text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
-      text-align: center; 
-      pointer-events: none; 
+      position: absolute; top: 65%; left: 50%; transform: translate(-50%, -50%); 
+      font-size: 32px; font-weight: bold; color: rgba(255, 215, 0, 0.7); 
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.5); text-align: center; pointer-events: none; 
+    }
+
+    #countdown {
+      position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%);
+      font-size: 100px; font-weight: bold; color: #fff;
+      text-shadow: 2px 2px 8px rgba(0,0,0,0.8); pointer-events: none;
+      opacity: 0; transition: opacity 0.3s;
     }
     
     .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; z-index: 10; overflow-y: auto; }
@@ -39,17 +39,8 @@
     .input-text { text-align: center; font-weight: bold; }
 
     #exitBtn {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: #e63946;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      font-weight: bold;
-      border-radius: 6px;
-      cursor: pointer;
-      z-index: 20;
+      position: absolute; top: 10px; right: 10px; background: #e63946; color: white;
+      border: none; padding: 10px 15px; font-weight: bold; border-radius: 6px; cursor: pointer; z-index: 20;
     }
     #exitBtn:hover { background: #ff4d5a; }
   </style>
@@ -73,6 +64,17 @@
         <option value="bots">Partita con Bot</option>
       </select>
     </label>
+    
+    <!-- Menu Difficoltà Bot (appare solo se scegli Bot) -->
+    <label id="botDifficultyArea" class="hidden">
+      Difficoltà Bot:
+      <select id="botDifficulty">
+        <option value="easy">Facile</option>
+        <option value="medium" selected>Medio</option>
+        <option value="hard">Difficile</option>
+      </select>
+    </label>
+
     <label>
       Giocatori per squadra (solo in Classica):
       <select id="createMaxPerTeam">
@@ -152,6 +154,7 @@
     <div id="timer">10:00</div>
   </div>
   <div id="msg"></div>
+  <div id="countdown"></div>
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script>
@@ -177,6 +180,8 @@
     const lobbyStatus = document.getElementById('lobbyStatus');
     const teamChoiceArea = document.getElementById('teamChoiceArea');
     const exitBtn = document.getElementById('exitBtn');
+    const countdownEl = document.getElementById('countdown');
+    const botDifficultyArea = document.getElementById('botDifficultyArea');
 
     document.getElementById('goCreate').onclick = () => { homeScreen.classList.add('hidden'); createScreen.classList.remove('hidden'); };
     document.getElementById('goJoin').onclick = () => { homeScreen.classList.add('hidden'); joinScreen.classList.remove('hidden'); };
@@ -184,8 +189,16 @@
     document.getElementById('backFromJoin').onclick = () => { joinScreen.classList.add('hidden'); homeScreen.classList.remove('hidden'); joinMsg.textContent = ''; };
 
     document.getElementById('createMode').addEventListener('change', (e) => {
-      if (e.target.value === 'normal') { teamChoiceArea.classList.remove('hidden'); }
-      else { teamChoiceArea.classList.add('hidden'); }
+      if (e.target.value === 'normal') { 
+        teamChoiceArea.classList.remove('hidden'); 
+        botDifficultyArea.classList.add('hidden');
+      } else if (e.target.value === 'bots') {
+        teamChoiceArea.classList.add('hidden');
+        botDifficultyArea.classList.remove('hidden');
+      } else {
+        teamChoiceArea.classList.add('hidden');
+        botDifficultyArea.classList.add('hidden');
+      }
     });
 
     document.getElementById('doCreate').onclick = () => {
@@ -193,7 +206,8 @@
       currentMode = mode;
       const maxPerTeam = parseInt(document.getElementById('createMaxPerTeam').value);
       const matchTime = parseInt(document.getElementById('createMatchTime').value);
-      socket.emit('createRoom', { maxPerTeam, matchTime, mode });
+      const botDifficulty = document.getElementById('botDifficulty').value;
+      socket.emit('createRoom', { maxPerTeam, matchTime, mode, botDifficulty });
       createMsg.textContent = 'Generazione in corso...';
     };
 
@@ -255,7 +269,7 @@
     
     socket.on('goal', (data) => { 
       document.getElementById('msg').textContent = `GOL! Squadra ${data.team} segna!`; 
-      setTimeout(() => { document.getElementById('msg').textContent = ''; }, 5000); 
+      setTimeout(() => { document.getElementById('msg').textContent = ''; }, 3000); 
     });
     
     socket.on('extraTime', () => { document.getElementById('msg').textContent = 'Pareggio! Supplementare!'; setTimeout(() => document.getElementById('msg').textContent = '', 2000); });
@@ -274,8 +288,18 @@
         socket.emit('move', { dx, dy });
       }
       ctx.clearRect(0, 0, W, H);
-      drawField(); drawBall(); drawPlayers(); drawHUD();
+      drawField(); drawBall(); drawPlayers(); drawHUD(); updateCountdown();
       requestAnimationFrame(loop);
+    }
+
+    function updateCountdown() {
+      if (state.goalPause > 0) {
+        const seconds = Math.ceil(state.goalPause);
+        countdownEl.textContent = seconds;
+        countdownEl.style.opacity = 1;
+      } else {
+        countdownEl.style.opacity = 0;
+      }
     }
 
     function drawField() {
@@ -289,49 +313,4 @@
 
     function drawBall() {
       const b = state.ball; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(b.x, b.y, 10, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 1; ctx.stroke();
-    }
-
-    function drawPlayers() {
-      for (const id in state.players) {
-        const p = state.players[id];
-        
-        if (p.customColor) { ctx.fillStyle = p.customColor; } 
-        else { ctx.fillStyle = p.team === 'A' ? '#e63946' : '#457b9d'; }
-        
-        ctx.beginPath(); ctx.arc(p.x, p.y, 18, 0, Math.PI * 2); ctx.fill();
-        
-        if (id === myId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); }
-
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 14px sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        if (p.team === 'A') { ctx.fillText('X', p.x, p.y); } 
-        else { ctx.fillText('O', p.x, p.y); }
-
-        if (p.playerName) {
-            ctx.fillStyle = 'rgba(0,0,0,0.6)';
-            ctx.fillRect(p.x - 25, p.y - 38, 50, 16);
-            ctx.fillStyle = '#fff';
-            ctx.font = '12px sans-serif';
-            ctx.fillText(p.playerName, p.x, p.y - 30);
-        }
-
-        if (p.isBot) { ctx.fillStyle = '#fff'; ctx.font = '10px sans-serif'; ctx.fillText('BOT', p.x, p.y + 25); }
-      }
-    }
-
-    function drawHUD() {
-      if (state.mode === 'training') {
-        document.getElementById('score').textContent = `${state.trainingScore} GOL`;
-        document.getElementById('timer').textContent = 'ALLENAMENTO';
-      } else {
-        document.getElementById('score').textContent = `${state.score.A} - ${state.score.B}`;
-        const t = Math.max(0, Math.ceil(state.timeLeft));
-        document.getElementById('timer').textContent = `${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}` + (state.inExtraTime ? ' (supp.)' : '');
-      }
-    }
-
-    loop();
-  </script>
-</body>
-</html>
+   
