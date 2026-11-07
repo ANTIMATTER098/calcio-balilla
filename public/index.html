@@ -8,7 +8,20 @@
     body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; color: #fff; }
     canvas { display: block; margin: 0 auto; background: #2a7a2a; }
     #hud { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); text-align: center; }
-    #msg { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 28px; text-align: center; pointer-events: none; }
+    
+    #msg { 
+      position: absolute; 
+      top: 65%; 
+      left: 50%; 
+      transform: translate(-50%, -50%); 
+      font-size: 32px; 
+      font-weight: bold;
+      color: rgba(255, 215, 0, 0.7); 
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+      text-align: center; 
+      pointer-events: none; 
+    }
+    
     .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; z-index: 10; overflow-y: auto; }
     .screen h1 { margin: 0; }
     .screen label { display: flex; flex-direction: column; gap: 5px; font-size: 16px; }
@@ -24,6 +37,21 @@
     .color-picker { display: flex; align-items: center; gap: 10px; }
     .color-picker input { width: 40px; height: 40px; padding: 0; cursor: pointer; }
     .input-text { text-align: center; font-weight: bold; }
+
+    #exitBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: #e63946;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 20;
+    }
+    #exitBtn:hover { background: #ff4d5a; }
   </style>
 </head>
 <body>
@@ -117,6 +145,8 @@
   </div>
 
   <canvas id="c" width="900" height="600" class="hidden"></canvas>
+  <button id="exitBtn" class="hidden">ESCI</button>
+  
   <div id="hud" class="hidden">
     <div id="score">0 - 0</div>
     <div id="timer">10:00</div>
@@ -132,7 +162,7 @@
 
     let myTeam = null, myId = null, myRoomId = null;
     let currentMode = 'normal';
-    let state = { players: {}, ball: { x: W/2, y: H/2 }, score: { A: 0, B: 0 }, timeLeft: 600, matchState: 'waiting', inExtraTime: false };
+    let state = { players: {}, ball: { x: W/2, y: H/2 }, score: { A: 0, B: 0 }, trainingScore: 0, timeLeft: 600, matchState: 'waiting', inExtraTime: false, goalPause: 0, mode: 'normal' };
     let keys = {};
 
     const homeScreen = document.getElementById('homeScreen');
@@ -146,6 +176,7 @@
     const enterCreated = document.getElementById('enterCreated');
     const lobbyStatus = document.getElementById('lobbyStatus');
     const teamChoiceArea = document.getElementById('teamChoiceArea');
+    const exitBtn = document.getElementById('exitBtn');
 
     document.getElementById('goCreate').onclick = () => { homeScreen.classList.add('hidden'); createScreen.classList.remove('hidden'); };
     document.getElementById('goJoin').onclick = () => { homeScreen.classList.add('hidden'); joinScreen.classList.remove('hidden'); };
@@ -203,19 +234,40 @@
       myTeam = data.team; myId = data.playerId;
       homeScreen.classList.add('hidden'); createScreen.classList.add('hidden'); joinScreen.classList.add('hidden');
       canvas.classList.remove('hidden'); hud.classList.remove('hidden');
+      
+      if (currentMode === 'training' || currentMode === 'bots') {
+        exitBtn.classList.remove('hidden');
+      }
+    });
+
+    exitBtn.onclick = () => {
+      socket.emit('leaveRoom');
+    };
+
+    socket.on('leftRoom', () => {
+      myTeam = null; myId = null; myRoomId = null;
+      canvas.classList.add('hidden'); hud.classList.add('hidden'); exitBtn.classList.add('hidden');
+      document.getElementById('msg').textContent = '';
+      homeScreen.classList.remove('hidden');
     });
 
     socket.on('matchStart', () => { document.getElementById('msg').textContent = ''; });
-    socket.on('goal', (data) => { document.getElementById('msg').textContent = `GOL! ${data.team} segna!`; setTimeout(() => { if (document.getElementById('msg').textContent.startsWith('GOL')) document.getElementById('msg').textContent = ''; }, 1500); });
+    
+    socket.on('goal', (data) => { 
+      document.getElementById('msg').textContent = `GOL! Squadra ${data.team} segna!`; 
+      setTimeout(() => { document.getElementById('msg').textContent = ''; }, 5000); 
+    });
+    
     socket.on('extraTime', () => { document.getElementById('msg').textContent = 'Pareggio! Supplementare!'; setTimeout(() => document.getElementById('msg').textContent = '', 2000); });
     socket.on('matchEnd', (data) => { document.getElementById('msg').textContent = data.winner === 'pareggio' ? 'Pareggio!' : `Vince ${data.winner}!`; });
+    
     socket.on('state', (s) => { state = s; });
 
     document.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if (e.key === ' ') { socket.emit('boost'); e.preventDefault(); } });
     document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 
     function loop() {
-      if (myTeam) {
+      if (myTeam && state.goalPause <= 0 && state.matchState === 'playing') {
         let dx = 0, dy = 0;
         if (keys['w']) dy -= 1; if (keys['s']) dy += 1; if (keys['a']) dx -= 1; if (keys['d']) dx += 1;
         if (dx !== 0 || dy !== 0) { const len = Math.hypot(dx, dy); dx /= len; dy /= len; }
@@ -250,14 +302,12 @@
         
         if (id === myId) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke(); }
 
-        // Simbolo daltonici
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 14px sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         if (p.team === 'A') { ctx.fillText('X', p.x, p.y); } 
         else { ctx.fillText('O', p.x, p.y); }
 
-        // NOME GIOCATORE
         if (p.playerName) {
             ctx.fillStyle = 'rgba(0,0,0,0.6)';
             ctx.fillRect(p.x - 25, p.y - 38, 50, 16);
@@ -271,16 +321,8 @@
     }
 
     function drawHUD() {
-      document.getElementById('score').textContent = `${state.score.A} - ${state.score.B}`;
-      const t = Math.max(0, Math.ceil(state.timeLeft));
+      // HUD diverso se in allenamento
       if (state.mode === 'training') {
+        document.getElementById('score').textContent = `${state.trainingScore} GOL`;
         document.getElementById('timer').textContent = 'ALLENAMENTO';
       } else {
-        document.getElementById('timer').textContent = `${Math.floor(t / 60)}:${(t % 60).toString().padStart(2, '0')}` + (state.inExtraTime ? ' (supp.)' : '');
-      }
-    }
-
-    loop();
-  </script>
-</body>
-</html>
