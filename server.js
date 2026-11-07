@@ -20,7 +20,7 @@ function createRoom(roomId, config) {
     players: {},
     ball: { x: W/2, y: H/2, vx: 0, vy: 0 },
     score: { A: 0, B: 0 },
-    trainingScore: 0, // Contatore unico per l'allenamento
+    trainingScore: 0,
     timeLeft: config.matchTime || 10 * 60,
     matchState: 'waiting',
     extraTimeLeft: 0,
@@ -29,7 +29,8 @@ function createRoom(roomId, config) {
     MAX_PER_TEAM: Math.min(2, Math.max(1, config.maxPerTeam || 2)),
     MATCH_TIME: Math.max(30, Math.min(60 * 60, config.matchTime || 10 * 60)),
     mode: config.mode || 'normal',
-    goalPause: 0
+    goalPause: 0,
+    botDifficulty: config.botDifficulty || 'medium' // facile, medium, hard
   };
 }
 
@@ -47,13 +48,11 @@ function resetPositions(room) {
 function checkGoal(room) {
   let scored = false;
   
-  // Porta di sinistra (Squadra B segna)
   if (room.ball.x - BALL_R <= 0 && room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2) {
     if (room.mode === 'training') room.trainingScore++;
     else room.score.B++;
     scored = true;
   }
-  // Porta di destra (Squadra A segna)
   else if (room.ball.x + BALL_R >= W && room.ball.y > H/2 - GOAL_H/2 && room.ball.y < H/2 + GOAL_H/2) {
     if (room.mode === 'training') room.trainingScore++;
     else room.score.A++;
@@ -63,7 +62,7 @@ function checkGoal(room) {
   if (scored) {
     resetPositions(room);
     if (room.mode !== 'training') io.to(room.id).emit('goal', { team: room.ball.x < W/2 ? 'B' : 'A', score: room.score });
-    room.goalPause = 5; // 5 secondi di pausa
+    room.goalPause = 3; 
     return true;
   }
   return false;
@@ -80,7 +79,6 @@ function tickRoom(room) {
       room.goalPause -= dt;
       if (room.goalPause <= 0) room.goalPause = 0;
     } else {
-      // Timer scende solo se non c'è la pausa del gol e non è allenamento
       if (room.mode !== 'training') {
         if (room.inExtraTime) {
           room.extraTimeLeft -= dt;
@@ -99,11 +97,22 @@ function tickRoom(room) {
       for (const id in room.players) {
         const p = room.players[id];
         if (p.isBot) {
+          // IMPOSTAZIONI BOT IN BASE ALLA DIFFICOLTÀ
+          let botSpeed = 150;
+          let botHitForce = 1.5;
+          
+          if (room.botDifficulty === 'easy') {
+            botSpeed = 100;
+            botHitForce = 1.0;
+          } else if (room.botDifficulty === 'hard') {
+            botSpeed = 240;
+            botHitForce = 2.5;
+          }
+
           const dx = room.ball.x - p.x; const dy = room.ball.y - p.y;
           const dist = Math.hypot(dx, dy);
           if (dist > 5) {
-            const speed = 150;
-            p.vx = (dx / dist) * speed; p.vy = (dy / dist) * speed;
+            p.vx = (dx / dist) * botSpeed; p.vy = (dy / dist) * botSpeed;
             p.x += p.vx * dt; p.y += p.vy * dt;
           } else { p.vx = 0; p.vy = 0; }
         }
@@ -144,8 +153,15 @@ function tickRoom(room) {
         if (dist < minDist && dist > 0) {
           const nx = dx / dist; const ny = dy / dist; const overlap = minDist - dist;
           room.ball.x += nx * overlap; room.ball.y += ny * overlap;
+          
+          let hitForce = 1.5;
+          if (p.isBot) {
+            if (room.botDifficulty === 'easy') hitForce = 1.0;
+            if (room.botDifficulty === 'hard') hitForce = 2.5;
+          }
+          
           const pSpeed = Math.hypot(p.vx, p.vy);
-          room.ball.vx += nx * (pSpeed * 1.5 + 50); room.ball.vy += ny * (pSpeed * 1.5 + 50);
+          room.ball.vx += nx * (pSpeed * hitForce + 50); room.ball.vy += ny * (pSpeed * hitForce + 50);
         }
       }
       checkGoal(room);
